@@ -1,0 +1,12 @@
+nohup: ignoring input
+INFO:     Will watch for changes in these directories: ['/workspaces/GHC-DT']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [42155] using WatchFiles
+INFO:     Started server process [42192]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:51848 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49920 - "POST /api/ask HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38160 - "POST /api/ask HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46034 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44394 - "GET /api/health HTTP/1.1" 200 OK
