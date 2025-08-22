@@ -160,6 +160,7 @@
                 welcomeMsg: "Ask your first question to begin...",
                 sendText: "Send",
                 voiceText: "Voice Input",
+                thinkingText: "Processing your request...",
                 ingestTitle: "📁 Content Ingestion",
                 fileLabel: "Upload Files:",
                 uploadText: "Choose Files",
@@ -185,6 +186,7 @@
                 welcomeMsg: "Spurðu fyrstu spurninguna þína til að byrja...",
                 sendText: "Senda",
                 voiceText: "Raddinntak",
+                thinkingText: "Vinnur úr beiðni þinni...",
                 ingestTitle: "📁 Efnisupptaka",
                 fileLabel: "Hlaða upp skrám:",
                 uploadText: "Veldu skrár",
@@ -210,6 +212,7 @@
                 welcomeMsg: "Posez votre première question pour commencer...",
                 sendText: "Envoyer",
                 voiceText: "Entrée vocale",
+                thinkingText: "Traitement de votre demande...",
                 ingestTitle: "📁 Ingestion de contenu",
                 fileLabel: "Télécharger des fichiers:",
                 uploadText: "Choisir fichiers",
@@ -235,6 +238,7 @@
                 welcomeMsg: "Haz tu primera pregunta para comenzar...",
                 sendText: "Enviar",
                 voiceText: "Entrada de voz",
+                thinkingText: "Procesando tu solicitud...",
                 ingestTitle: "📁 Ingesta de contenido",
                 fileLabel: "Subir archivos:",
                 uploadText: "Elegir archivos",
@@ -415,8 +419,8 @@
             }
         }
 
-        // Send message function (DEMO - replace with real backend)
-        function sendMessage() {
+        // DIRECT DigitalRoots API Connection - NO BACKEND NEEDED
+        async function sendMessage() {
             const input = document.getElementById('messageInput');
             const question = input.value.trim();
             const audience = document.getElementById('audience').value;
@@ -426,16 +430,88 @@
             addMessage('user', question);
             input.value = '';
 
-            // DEMO responses - replace with actual DigitalRoots API call
-            setTimeout(() => {
-                const responses = {
-                    en: "🌿 **GHC Digital Twin Response**\\n\\nThis is a demo response. To connect to your actual DigitalRoots system:\\n\\n1. Deploy your backend API\\n2. Update the backend URL\\n3. Configure your assistant IDs\\n\\nFor now, this interface demonstrates:\\n✅ Multi-language support\\n✅ Voice input\\n✅ Image capture\\n✅ File ingestion\\n✅ Professional UI",
-                    is: "🌿 **GHC Stafrænn Tvíburi Svar**\\n\\nÞetta er prufusvar. Til að tengjast raunverulegu DigitalRoots kerfinu þínu:\\n\\n1. Settu upp bakenda API\\n2. Uppfærðu bakenda vefslóðina\\n3. Stilltu auðkenni aðstoðarmanna\\n\\nÞar til sýnir þessi viðmót:\\n✅ Fjöltungumálastuðning\\n✅ Raddinntak\\n✅ Myndataka\\n✅ Skráainntak\\n✅ Fagleg notendaviðmót",
-                    fr: "🌿 **Réponse Jumeau Numérique GHC**\\n\\nCeci est une réponse de démonstration. Pour vous connecter à votre véritable système DigitalRoots:\\n\\n1. Déployez votre API backend\\n2. Mettez à jour l'URL du backend\\n3. Configurez vos ID d'assistant\\n\\nPour l'instant, cette interface démontre:\\n✅ Support multilingue\\n✅ Entrée vocale\\n✅ Capture d'image\\n✅ Ingestion de fichiers\\n✅ Interface professionnelle",
-                    es: "🌿 **Respuesta Gemelo Digital GHC**\\n\\nEsta es una respuesta de demostración. Para conectar con tu sistema DigitalRoots real:\\n\\n1. Despliega tu API backend\\n2. Actualiza la URL del backend\\n3. Configura tus IDs de asistente\\n\\nPor ahora, esta interfaz demuestra:\\n✅ Soporte multiidioma\\n✅ Entrada de voz\\n✅ Captura de imagen\\n✅ Ingesta de archivos\\n✅ Interfaz profesional"
+            // Show typing indicator
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'typing-indicator';
+            typingDiv.className = 'mb-4 text-left';
+            typingDiv.innerHTML = `
+                <div class="inline-block max-w-xs lg:max-w-md px-4 py-2 rounded-lg bg-gray-200 text-gray-600">
+                    <div class="font-medium mb-1">🤖 GHC Digital Twin</div>
+                    <div class="text-sm">
+                        <i class="fas fa-circle-notch fa-spin"></i> ${languages[currentLang].thinkingText || 'Processing...'}
+                    </div>
+                </div>
+            `;
+            document.getElementById('messages').appendChild(typingDiv);
+            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+
+            try {
+                // DIRECT DigitalRoots API Configuration
+                const DR_BASE_URL = "https://digitalroots-bf3899aefd705f6789c2466e0c9b974d.us.langgraph.app";
+                const DR_API_KEY = "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";
+                
+                const ASSISTANT_IDS = {
+                    "boardroom": "76f94782-5f1d-4ea0-8e69-294da3e1aefb",
+                    "investor":  "ff7afd85-51e0-4fdd-8ec5-a14508a100f9",
+                    "public":    "34747e20-39db-415e-bd80-597006f71a7a"
                 };
-                addMessage('assistant', responses[currentLang]);
-            }, 1000);
+
+                const assistant_id = ASSISTANT_IDS[audience];
+                const url = `${DR_BASE_URL}/runs/wait`;
+                
+                // Call DigitalRoots DIRECTLY
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': DR_API_KEY,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        assistant_id: assistant_id,
+                        input: { question: question }
+                    })
+                });
+
+                // Remove typing indicator
+                const indicator = document.getElementById('typing-indicator');
+                if (indicator) indicator.remove();
+
+                if (!response.ok) {
+                    throw new Error(`DigitalRoots API error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Extract response from DigitalRoots data structure
+                let responseText = '';
+                if (data.output && data.output.response) {
+                    responseText = data.output.response;
+                } else if (data.response) {
+                    responseText = data.response;
+                } else if (typeof data === 'string') {
+                    responseText = data;
+                } else if (data.output) {
+                    responseText = JSON.stringify(data.output, null, 2);
+                } else {
+                    responseText = JSON.stringify(data, null, 2);
+                }
+
+                addMessage('assistant', `🌿 **Green Hill Canarias Digital Twin**\n\n${responseText}`);
+
+            } catch (error) {
+                // Remove typing indicator on error
+                const indicator = document.getElementById('typing-indicator');
+                if (indicator) indicator.remove();
+
+                const errorMessages = {
+                    en: `🚨 **DigitalRoots Connection Error**\n\nCould not connect to Digital Twin.\n\nError: ${error.message}\n\nThis is a direct connection to:\n• https://digitalroots-bf3899aefd705f6789c2466e0c9b974d.us.langgraph.app\n• Using x-api-key authentication\n• No backend proxy needed`,
+                    is: `🚨 **DigitalRoots Tengivilla**\n\nGat ekki tengst við Digital Twin.\n\nVilla: ${error.message}\n\nÞetta er bein tenging við:\n• https://digitalroots-bf3899aefd705f6789c2466e0c9b974d.us.langgraph.app\n• Notar x-api-key auðkenningu\n• Enginn bakendi proxy þörf`,
+                    fr: `🚨 **Erreur de Connexion DigitalRoots**\n\nImpossible de se connecter au Digital Twin.\n\nErreur: ${error.message}\n\nCeci est une connexion directe à:\n• https://digitalroots-bf3899aefd705f6789c2466e0c9b974d.us.langgraph.app\n• Utilisant l'authentification x-api-key\n• Aucun proxy backend nécessaire`,
+                    es: `🚨 **Error de Conexión DigitalRoots**\n\nNo se pudo conectar al Digital Twin.\n\nError: ${error.message}\n\nEsta es una conexión directa a:\n• https://digitalroots-bf3899aefd705f6789c2466e0c9b974d.us.langgraph.app\n• Usando autenticación x-api-key\n• No se necesita proxy backend`
+                };
+                
+                addMessage('system', errorMessages[currentLang] || errorMessages.en);
+            }
         }
 
         // Add message to chat
