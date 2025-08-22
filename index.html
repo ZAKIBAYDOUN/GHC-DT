@@ -84,8 +84,32 @@
     </div>
 
     <script>
-        // Configuración del backend
-        const BACKEND_URL = 'https://potential-zebra-w9g57rw7rj525g6v-8001.app.github.dev';
+        // Configuración del backend - probando múltiples URLs
+        const BACKEND_URLS = [
+            'https://potential-zebra-w9g57rw7rj525g6v-8001.app.github.dev',
+            'https://zakibaydoun-ghc-dt.vercel.app/api',
+            'http://127.0.0.1:8001'
+        ];
+        
+        // Función para probar conectividad
+        async function findWorkingBackend() {
+            for (const url of BACKEND_URLS) {
+                try {
+                    const response = await fetch(`${url}/api/health`, {
+                        method: 'GET',
+                        mode: 'cors'
+                    });
+                    if (response.ok) {
+                        return url;
+                    }
+                } catch (e) {
+                    console.log(`Backend ${url} no disponible`);
+                }
+            }
+            return null;
+        }
+        
+        let BACKEND_URL = null;
         
         // Estado de la aplicación
         let messages = [];
@@ -97,6 +121,15 @@
             const question = input.value.trim();
             
             if (!question) return;
+
+            // Verificar backend disponible
+            if (!BACKEND_URL) {
+                BACKEND_URL = await findWorkingBackend();
+                if (!BACKEND_URL) {
+                    addMessage('system', 'Error: No se pudo conectar a ningún backend disponible');
+                    return;
+                }
+            }
 
             // Deshabilitar entrada mientras se procesa
             input.disabled = true;
@@ -114,6 +147,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    mode: 'cors',
                     body: JSON.stringify({
                         audience: audience,
                         question: question
@@ -123,12 +157,14 @@
                 if (response.ok) {
                     const data = await response.json();
                     // Agregar respuesta del asistente
-                    addMessage('assistant', data.final_answer || 'Respuesta recibida correctamente.');
+                    addMessage('assistant', data.final_answer || JSON.stringify(data, null, 2));
                 } else {
-                    addMessage('system', `Error: ${response.status} - No se pudo conectar al backend`);
+                    addMessage('system', `Error ${response.status}: Backend no disponible`);
                 }
             } catch (error) {
                 addMessage('system', `Error de conexión: ${error.message}`);
+                // Reintentar encontrar backend
+                BACKEND_URL = null;
             }
 
             // Rehabilitar entrada
@@ -185,13 +221,21 @@
         }
 
         // Inicialización
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('messageInput').focus();
             
-            // Mensaje de bienvenida
-            setTimeout(() => {
-                addMessage('system', '¡Bienvenido al Digital Twin de Green Hill Canarias! Selecciona tu audiencia y haz una pregunta.');
-            }, 1000);
+            // Buscar backend disponible
+            addMessage('system', '🔍 Buscando backend disponible...');
+            BACKEND_URL = await findWorkingBackend();
+            
+            if (BACKEND_URL) {
+                addMessage('system', `✅ Conectado a: ${BACKEND_URL}`);
+                setTimeout(() => {
+                    addMessage('system', '¡Bienvenido al Digital Twin de Green Hill Canarias! Selecciona tu audiencia y haz una pregunta.');
+                }, 1000);
+            } else {
+                addMessage('system', '❌ No se encontró ningún backend disponible. El chat no funcionará.');
+            }
         });
     </script>
 </body>
