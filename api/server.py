@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import requests
+import tools  # Importación corregida
 
 # Cargar variables de entorno (root y local)
 load_dotenv("../.env")
@@ -40,7 +41,7 @@ def health():
 
 @app.get("/api/history")
 def history():
-    # Placeholder de historial (puedes conectarlo a DR si hay endpoint específico)
+    # Placeholder de historial
     return {"history": []}
 
 @app.post("/api/ask")
@@ -48,15 +49,46 @@ def ask(body: AskBody):
     audience = body.audience.lower()
     if audience not in ASSISTANT_IDS:
         raise HTTPException(status_code=400, detail="Invalid audience")
+    
     url = f"{DR_BASE_URL}/runs/wait"
     headers = {"x-api-key": DR_API_KEY, "Content-Type": "application/json"}
     payload = {
         "assistant_id": ASSISTANT_IDS[audience],
         "input": {"question": body.question},
     }
-    response = requests.post(url, headers=headers, json=payload)
-    return response.json(), response.status_code
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        # Levantar una excepción HTTP si la respuesta es un error (4xx o 5xx)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.HTTPError as http_err:
+        # Intentar devolver el detalle del error del servicio externo si es posible
+        error_detail = response.json() if response.content else str(http_err)
+        raise HTTPException(status_code=response.status_code, detail=error_detail)
+    except requests.exceptions.RequestException as req_err:
+        # Para errores de conexión, timeouts, etc.
+        raise HTTPException(status_code=503, detail=f"Service unavailable: {req_err}")
 
 @app.post("/api/ingest")
 def ingest():
     return {"status": "not_implemented"}
+
+# --- Endpoints para Herramientas ---
+
+@app.get("/api/tools")
+def get_tools():
+    """Devuelve la lista de definiciones de herramientas."""
+    return tools.get_tool_definitions()
+
+class ToolExecutionBody(BaseModel):
+    name: str
+    args: dict
+
+@app.post("/api/tools/execute")
+def execute_tool_endpoint(body: ToolExecutionBody):
+    """Ejecuta una herramienta y devuelve el resultado."""
+    result = tools.execute_tool(body.name, body.args)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result)
+    return result
