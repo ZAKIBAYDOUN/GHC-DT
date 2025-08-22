@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,175 +10,438 @@
 <body class="bg-gradient-to-br from-green-50 to-blue-50 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
-        <header class="text-center mb-12">
+        <header class="text-center mb-8">
             <h1 class="text-4xl font-bold text-green-800 mb-4">
                 🌿 Green Hill Canarias — AI Portal
             </h1>
-            <p class="text-lg text-gray-600">Digital Twin empresarial basado en DigitalRoots LangGraph</p>
+            <div class="flex justify-center gap-4 mb-4">
+                <select id="language" class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500" onchange="switchLanguage()">
+                    <option value="en">🇬🇧 English</option>
+                    <option value="is">🇮🇸 Íslenska</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="es">🇪🇸 Español</option>
+                </select>
+            </div>
+            <p class="text-lg text-gray-600" id="subtitle">Digital Twin powered by advanced AI</p>
         </header>
 
-        <!-- Selector de Audiencia -->
-        <div class="max-w-2xl mx-auto mb-8">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Seleccionar Audiencia:</label>
-            <select id="audience" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                <option value="public">🌍 Public - Información general</option>
-                <option value="investor">💰 Investor - Métricas financieras</option>
-                <option value="boardroom">👔 Boardroom - Decisiones ejecutivas</option>
+        <!-- Audience Selector -->
+        <div class="max-w-2xl mx-auto mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2" id="audienceLabel">Select Audience:</label>
+            <select id="audience" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500">
+                <option value="public">🌍 Public - General Information</option>
+                <option value="investor">💰 Investor - Financial Metrics</option>
+                <option value="boardroom">👔 Boardroom - Executive Decisions</option>
             </select>
         </div>
 
-        <!-- Chat Panel -->
-        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">💬 Chat con el Digital Twin</h2>
-            
-            <div id="messages" class="bg-gray-50 rounded-lg p-4 mb-4 min-h-[200px] max-h-[400px] overflow-y-auto">
-                <div class="text-gray-500 text-center">Haz tu primera pregunta para comenzar...</div>
-            </div>
-            
-            <div class="flex gap-2">
-                <input 
-                    type="text" 
-                    id="messageInput" 
-                    placeholder="Escribe tu pregunta aquí..." 
-                    class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    onkeypress="handleKeyPress(event)"
-                >
-                <button 
-                    onclick="sendMessage()" 
-                    class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
-                    id="sendButton"
-                >
-                    <i class="fas fa-paper-plane"></i> Enviar
-                </button>
+        <!-- Main Chat Interface -->
+        <div class="max-w-6xl mx-auto bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Chat Panel -->
+                <div class="lg:col-span-2">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4" id="chatTitle">💬 Chat with Digital Twin</h2>
+                    
+                    <div id="messages" class="bg-gray-50 rounded-lg p-4 mb-4 min-h-[300px] max-h-[400px] overflow-y-auto">
+                        <div class="text-gray-500 text-center" id="welcomeMsg">Ask your first question to begin...</div>
+                    </div>
+                    
+                    <!-- Input Methods -->
+                    <div class="space-y-3">
+                        <!-- Text Input -->
+                        <div class="flex gap-2">
+                            <input 
+                                type="text" 
+                                id="messageInput" 
+                                placeholder="Type your question here..." 
+                                class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                                onkeypress="handleKeyPress(event)"
+                            >
+                            <button onclick="sendMessage()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors" id="sendButton">
+                                <i class="fas fa-paper-plane"></i> <span id="sendText">Send</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Voice Input -->
+                        <div class="flex gap-2">
+                            <button onclick="toggleVoiceRecording()" class="flex-1 bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors" id="voiceButton">
+                                <i class="fas fa-microphone"></i> <span id="voiceText">Voice Input</span>
+                            </button>
+                            <button onclick="toggleImageCapture()" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors">
+                                <i class="fas fa-camera"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ingestion Panel -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-lg font-semibold mb-4" id="ingestTitle">📁 Content Ingestion</h3>
+                    
+                    <!-- File Upload -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2" id="fileLabel">Upload Files:</label>
+                        <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.txt,.md,.json,.csv" class="hidden" onchange="handleFileUpload(event)">
+                        <button onclick="document.getElementById('fileInput').click()" class="w-full bg-gray-600 text-white p-3 rounded-lg hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-upload"></i> <span id="uploadText">Choose Files</span>
+                        </button>
+                    </div>
+
+                    <!-- URL Input -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2" id="urlLabel">Ingest URL:</label>
+                        <div class="flex gap-2">
+                            <input type="url" id="urlInput" placeholder="https://..." class="flex-1 p-2 border border-gray-300 rounded-lg">
+                            <button onclick="ingestUrl()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                                <i class="fas fa-link"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Image/Video Upload -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2" id="mediaLabel">Media Files:</label>
+                        <input type="file" id="mediaInput" multiple accept="image/*,video/*" class="hidden" onchange="handleMediaUpload(event)">
+                        <button onclick="document.getElementById('mediaInput').click()" class="w-full bg-orange-600 text-white p-3 rounded-lg hover:bg-orange-700 transition-colors">
+                            <i class="fas fa-image"></i> <span id="mediaText">Images/Videos</span>
+                        </button>
+                    </div>
+
+                    <!-- Webcam Capture -->
+                    <button onclick="toggleWebcam()" class="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors" id="webcamButton">
+                        <i class="fas fa-video"></i> <span id="webcamText">Live Capture</span>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Status Panel -->
+        <!-- System Status -->
         <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">📊 Estado del Sistema</h2>
-            <div class="space-y-2">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4" id="statusTitle">📊 System Status</h2>
+            <div class="space-y-2" id="statusList">
                 <div class="flex items-center justify-between">
-                    <span class="text-gray-600">CLI Directo:</span>
-                    <span class="text-green-600 font-medium">✅ Funcionando</span>
+                    <span class="text-gray-600">Digital Twin:</span>
+                    <span class="text-green-600 font-medium" id="dtStatus">✅ Active</span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-gray-600">DigitalRoots:</span>
-                    <span class="text-green-600 font-medium">✅ Conectado</span>
+                    <span class="text-gray-600">Voice Recognition:</span>
+                    <span class="text-green-600 font-medium" id="voiceStatus">✅ Ready</span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-gray-600">GitHub Pages:</span>
-                    <span class="text-green-600 font-medium">✅ Desplegado</span>
+                    <span class="text-gray-600">Image Processing:</span>
+                    <span class="text-green-600 font-medium" id="imageStatus">✅ Ready</span>
                 </div>
             </div>
         </div>
+
+        <!-- Hidden Elements -->
+        <video id="webcamVideo" class="hidden" width="320" height="240" autoplay></video>
+        <canvas id="webcamCanvas" class="hidden"></canvas>
 
         <!-- Footer -->
         <footer class="text-center mt-12 text-gray-500">
-            <p>Desarrollado para Green Hill Canarias | Powered by DigitalRoots LangGraph</p>
+            <p id="footerText">Developed for Green Hill Canarias | Multi-modal AI Interface</p>
             <p class="mt-2">
                 <a href="https://github.com/ZAKIBAYDOUN/GHC-DT" target="_blank" class="text-green-600 hover:underline">
-                    <i class="fab fa-github"></i> Ver en GitHub
+                    <i class="fab fa-github"></i> View on GitHub
                 </a>
             </p>
         </footer>
     </div>
 
     <script>
-        // Configuración del backend - probando múltiples URLs
-        const BACKEND_URLS = [
-            'https://potential-zebra-w9g57rw7rj525g6v-8001.app.github.dev',
-            'https://zakibaydoun-ghc-dt.vercel.app/api',
-            'http://127.0.0.1:8001'
-        ];
-        
-        // Función para probar conectividad
-        async function findWorkingBackend() {
-            for (const url of BACKEND_URLS) {
-                try {
-                    const response = await fetch(`${url}/api/health`, {
-                        method: 'GET',
-                        mode: 'cors'
-                    });
-                    if (response.ok) {
-                        return url;
-                    }
-                } catch (e) {
-                    console.log(`Backend ${url} no disponible`);
+        // Language definitions
+        const languages = {
+            en: {
+                subtitle: "Digital Twin powered by advanced AI",
+                audienceLabel: "Select Audience:",
+                chatTitle: "💬 Chat with Digital Twin",
+                welcomeMsg: "Ask your first question to begin...",
+                sendText: "Send",
+                voiceText: "Voice Input",
+                ingestTitle: "📁 Content Ingestion",
+                fileLabel: "Upload Files:",
+                uploadText: "Choose Files",
+                urlLabel: "Ingest URL:",
+                mediaLabel: "Media Files:",
+                mediaText: "Images/Videos",
+                webcamText: "Live Capture",
+                statusTitle: "📊 System Status",
+                dtStatus: "✅ Active",
+                voiceStatus: "✅ Ready",
+                imageStatus: "✅ Ready",
+                footerText: "Developed for Green Hill Canarias | Multi-modal AI Interface",
+                audiences: {
+                    public: "🌍 Public - General Information",
+                    investor: "💰 Investor - Financial Metrics", 
+                    boardroom: "👔 Boardroom - Executive Decisions"
+                }
+            },
+            is: {
+                subtitle: "Stafrænn tvíburður knúinn af háþróaðri gervigreind",
+                audienceLabel: "Veldu markhóp:",
+                chatTitle: "💬 Spjall við stafrænan tvíbura",
+                welcomeMsg: "Spurðu fyrstu spurninguna þína til að byrja...",
+                sendText: "Senda",
+                voiceText: "Raddinntak",
+                ingestTitle: "📁 Efnisupptaka",
+                fileLabel: "Hlaða upp skrám:",
+                uploadText: "Veldu skrár",
+                urlLabel: "Upptaka vefslóð:",
+                mediaLabel: "Miðlaskrár:",
+                mediaText: "Myndir/Myndbönd",
+                webcamText: "Bein upptaka",
+                statusTitle: "📊 Staða kerfis",
+                dtStatus: "✅ Virkt",
+                voiceStatus: "✅ Tilbúið",
+                imageStatus: "✅ Tilbúið",
+                footerText: "Þróað fyrir Green Hill Canarias | Fjölmiðla AI viðmót",
+                audiences: {
+                    public: "🌍 Almenningur - Almennar upplýsingar",
+                    investor: "💰 Fjárfestar - Fjármálamælingar",
+                    boardroom: "👔 Stjórnarherbergi - Framkvæmdaákvarðanir"
+                }
+            },
+            fr: {
+                subtitle: "Jumeau numérique alimenté par l'IA avancée",
+                audienceLabel: "Sélectionner l'audience:",
+                chatTitle: "💬 Chat avec le Jumeau Numérique",
+                welcomeMsg: "Posez votre première question pour commencer...",
+                sendText: "Envoyer",
+                voiceText: "Entrée vocale",
+                ingestTitle: "📁 Ingestion de contenu",
+                fileLabel: "Télécharger des fichiers:",
+                uploadText: "Choisir fichiers",
+                urlLabel: "Ingérer l'URL:",
+                mediaLabel: "Fichiers média:",
+                mediaText: "Images/Vidéos",
+                webcamText: "Capture en direct",
+                statusTitle: "📊 État du système",
+                dtStatus: "✅ Actif",
+                voiceStatus: "✅ Prêt",
+                imageStatus: "✅ Prêt",
+                footerText: "Développé pour Green Hill Canarias | Interface IA multimodale",
+                audiences: {
+                    public: "🌍 Public - Informations générales",
+                    investor: "💰 Investisseur - Métriques financières",
+                    boardroom: "👔 Salle de conseil - Décisions exécutives"
+                }
+            },
+            es: {
+                subtitle: "Gemelo Digital impulsado por IA avanzada",
+                audienceLabel: "Seleccionar Audiencia:",
+                chatTitle: "💬 Chat con el Gemelo Digital",
+                welcomeMsg: "Haz tu primera pregunta para comenzar...",
+                sendText: "Enviar",
+                voiceText: "Entrada de voz",
+                ingestTitle: "📁 Ingesta de contenido",
+                fileLabel: "Subir archivos:",
+                uploadText: "Elegir archivos",
+                urlLabel: "Ingesta URL:",
+                mediaLabel: "Archivos multimedia:",
+                mediaText: "Imágenes/Videos",
+                webcamText: "Captura en vivo",
+                statusTitle: "📊 Estado del sistema",
+                dtStatus: "✅ Activo",
+                voiceStatus: "✅ Listo",
+                imageStatus: "✅ Listo",
+                footerText: "Desarrollado para Green Hill Canarias | Interfaz IA multimodal",
+                audiences: {
+                    public: "🌍 Público - Información general",
+                    investor: "💰 Inversor - Métricas financieras",
+                    boardroom: "👔 Sala de juntas - Decisiones ejecutivas"
                 }
             }
-            return null;
-        }
-        
-        let BACKEND_URL = null;
-        
-        // Estado de la aplicación
-        let messages = [];
+        };
 
-        // Función para enviar mensaje
-        async function sendMessage() {
+        // Global variables
+        let messages = [];
+        let currentLang = 'en';
+        let isRecording = false;
+        let mediaRecorder = null;
+        let webcamStream = null;
+        let recognition = null;
+
+        // Language switching
+        function switchLanguage() {
+            currentLang = document.getElementById('language').value;
+            const lang = languages[currentLang];
+            
+            document.getElementById('subtitle').textContent = lang.subtitle;
+            document.getElementById('audienceLabel').textContent = lang.audienceLabel;
+            document.getElementById('chatTitle').textContent = lang.chatTitle;
+            document.getElementById('sendText').textContent = lang.sendText;
+            document.getElementById('voiceText').textContent = lang.voiceText;
+            document.getElementById('ingestTitle').textContent = lang.ingestTitle;
+            document.getElementById('fileLabel').textContent = lang.fileLabel;
+            document.getElementById('uploadText').textContent = lang.uploadText;
+            document.getElementById('urlLabel').textContent = lang.urlLabel;
+            document.getElementById('mediaLabel').textContent = lang.mediaLabel;
+            document.getElementById('mediaText').textContent = lang.mediaText;
+            document.getElementById('webcamText').textContent = lang.webcamText;
+            document.getElementById('statusTitle').textContent = lang.statusTitle;
+            document.getElementById('dtStatus').textContent = lang.dtStatus;
+            document.getElementById('voiceStatus').textContent = lang.voiceStatus;
+            document.getElementById('imageStatus').textContent = lang.imageStatus;
+            document.getElementById('footerText').textContent = lang.footerText;
+            
+            // Update audience options
+            const audienceSelect = document.getElementById('audience');
+            audienceSelect.innerHTML = `
+                <option value="public">${lang.audiences.public}</option>
+                <option value="investor">${lang.audiences.investor}</option>
+                <option value="boardroom">${lang.audiences.boardroom}</option>
+            `;
+            
+            // Update welcome message if no messages yet
+            if (messages.length === 0) {
+                document.getElementById('welcomeMsg').textContent = lang.welcomeMsg;
+            }
+        }
+
+        // Voice Recognition Setup
+        function initVoiceRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = currentLang === 'is' ? 'is-IS' : 
+                                 currentLang === 'fr' ? 'fr-FR' :
+                                 currentLang === 'es' ? 'es-ES' : 'en-US';
+                
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('messageInput').value = transcript;
+                };
+                
+                recognition.onerror = function(event) {
+                    addMessage('system', `Voice recognition error: ${event.error}`);
+                };
+            }
+        }
+
+        // Voice Recording
+        function toggleVoiceRecording() {
+            if (!isRecording) {
+                if (recognition) {
+                    recognition.lang = currentLang === 'is' ? 'is-IS' : 
+                                     currentLang === 'fr' ? 'fr-FR' :
+                                     currentLang === 'es' ? 'es-ES' : 'en-US';
+                    recognition.start();
+                    isRecording = true;
+                    document.getElementById('voiceButton').innerHTML = '<i class="fas fa-stop"></i> Stop Recording';
+                    document.getElementById('voiceButton').classList.add('bg-red-600');
+                } else {
+                    addMessage('system', 'Voice recognition not supported in this browser');
+                }
+            } else {
+                if (recognition) recognition.stop();
+                isRecording = false;
+                document.getElementById('voiceButton').innerHTML = `<i class="fas fa-microphone"></i> ${languages[currentLang].voiceText}`;
+                document.getElementById('voiceButton').classList.remove('bg-red-600');
+            }
+        }
+
+        // Image Capture
+        function toggleImageCapture() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.capture = 'camera';
+            input.onchange = function(e) {
+                handleImageUpload(e.target.files);
+            };
+            input.click();
+        }
+
+        // Webcam functionality
+        function toggleWebcam() {
+            const video = document.getElementById('webcamVideo');
+            if (!webcamStream) {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => {
+                        webcamStream = stream;
+                        video.srcObject = stream;
+                        video.classList.remove('hidden');
+                        document.getElementById('webcamButton').innerHTML = '<i class="fas fa-stop"></i> Stop Capture';
+                    })
+                    .catch(err => {
+                        addMessage('system', `Webcam error: ${err.message}`);
+                    });
+            } else {
+                webcamStream.getTracks().forEach(track => track.stop());
+                webcamStream = null;
+                video.classList.add('hidden');
+                document.getElementById('webcamButton').innerHTML = `<i class="fas fa-video"></i> ${languages[currentLang].webcamText}`;
+            }
+        }
+
+        // File handling
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            for (let file of files) {
+                addMessage('system', `File uploaded: ${file.name} (${(file.size/1024).toFixed(1)} KB)`);
+                // Here you would typically send the file to your backend
+            }
+        }
+
+        function handleMediaUpload(event) {
+            const files = event.target.files;
+            for (let file of files) {
+                addMessage('system', `Media uploaded: ${file.name}`);
+                // Process media files here
+            }
+        }
+
+        function handleImageUpload(files) {
+            for (let file of files) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    addMessage('user', `📷 Image uploaded: ${file.name}`);
+                    // Process image here
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // URL ingestion
+        function ingestUrl() {
+            const url = document.getElementById('urlInput').value;
+            if (url) {
+                addMessage('system', `URL queued for ingestion: ${url}`);
+                document.getElementById('urlInput').value = '';
+            }
+        }
+
+        // Send message function (DEMO - replace with real backend)
+        function sendMessage() {
             const input = document.getElementById('messageInput');
-            const audience = document.getElementById('audience').value;
             const question = input.value.trim();
+            const audience = document.getElementById('audience').value;
             
             if (!question) return;
 
-            // Verificar backend disponible
-            if (!BACKEND_URL) {
-                BACKEND_URL = await findWorkingBackend();
-                if (!BACKEND_URL) {
-                    addMessage('system', 'Error: No se pudo conectar a ningún backend disponible');
-                    return;
-                }
-            }
-
-            // Deshabilitar entrada mientras se procesa
-            input.disabled = true;
-            document.getElementById('sendButton').disabled = true;
-            document.getElementById('sendButton').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
-
-            // Agregar mensaje del usuario
             addMessage('user', question);
             input.value = '';
 
-            try {
-                // Llamar al backend
-                const response = await fetch(`${BACKEND_URL}/api/ask`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    mode: 'cors',
-                    body: JSON.stringify({
-                        audience: audience,
-                        question: question
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    // Agregar respuesta del asistente
-                    addMessage('assistant', data.final_answer || JSON.stringify(data, null, 2));
-                } else {
-                    addMessage('system', `Error ${response.status}: Backend no disponible`);
-                }
-            } catch (error) {
-                addMessage('system', `Error de conexión: ${error.message}`);
-                // Reintentar encontrar backend
-                BACKEND_URL = null;
-            }
-
-            // Rehabilitar entrada
-            input.disabled = false;
-            document.getElementById('sendButton').disabled = false;
-            document.getElementById('sendButton').innerHTML = '<i class="fas fa-paper-plane"></i> Enviar';
-            input.focus();
+            // DEMO responses - replace with actual DigitalRoots API call
+            setTimeout(() => {
+                const responses = {
+                    en: "🌿 **GHC Digital Twin Response**\\n\\nThis is a demo response. To connect to your actual DigitalRoots system:\\n\\n1. Deploy your backend API\\n2. Update the backend URL\\n3. Configure your assistant IDs\\n\\nFor now, this interface demonstrates:\\n✅ Multi-language support\\n✅ Voice input\\n✅ Image capture\\n✅ File ingestion\\n✅ Professional UI",
+                    is: "🌿 **GHC Stafrænn Tvíburi Svar**\\n\\nÞetta er prufusvar. Til að tengjast raunverulegu DigitalRoots kerfinu þínu:\\n\\n1. Settu upp bakenda API\\n2. Uppfærðu bakenda vefslóðina\\n3. Stilltu auðkenni aðstoðarmanna\\n\\nÞar til sýnir þessi viðmót:\\n✅ Fjöltungumálastuðning\\n✅ Raddinntak\\n✅ Myndataka\\n✅ Skráainntak\\n✅ Fagleg notendaviðmót",
+                    fr: "🌿 **Réponse Jumeau Numérique GHC**\\n\\nCeci est une réponse de démonstration. Pour vous connecter à votre véritable système DigitalRoots:\\n\\n1. Déployez votre API backend\\n2. Mettez à jour l'URL du backend\\n3. Configurez vos ID d'assistant\\n\\nPour l'instant, cette interface démontre:\\n✅ Support multilingue\\n✅ Entrée vocale\\n✅ Capture d'image\\n✅ Ingestion de fichiers\\n✅ Interface professionnelle",
+                    es: "🌿 **Respuesta Gemelo Digital GHC**\\n\\nEsta es una respuesta de demostración. Para conectar con tu sistema DigitalRoots real:\\n\\n1. Despliega tu API backend\\n2. Actualiza la URL del backend\\n3. Configura tus IDs de asistente\\n\\nPor ahora, esta interfaz demuestra:\\n✅ Soporte multiidioma\\n✅ Entrada de voz\\n✅ Captura de imagen\\n✅ Ingesta de archivos\\n✅ Interfaz profesional"
+                };
+                addMessage('assistant', responses[currentLang]);
+            }, 1000);
         }
 
-        // Función para agregar mensaje al chat
+        // Add message to chat
         function addMessage(sender, content) {
             const messagesDiv = document.getElementById('messages');
             
-            // Limpiar mensaje inicial si es el primer mensaje
             if (messages.length === 0) {
                 messagesDiv.innerHTML = '';
             }
@@ -196,14 +459,14 @@
                 textColor = 'text-white';
                 icon = '🤖';
             } else {
-                bgColor = 'bg-red-100';
-                textColor = 'text-red-800';
-                icon = '⚠️';
+                bgColor = 'bg-blue-100';
+                textColor = 'text-blue-800';
+                icon = '⚡';
             }
 
             messageDiv.innerHTML = `
                 <div class="inline-block max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${bgColor} ${textColor}">
-                    <div class="font-medium mb-1">${icon} ${sender === 'user' ? 'Tú' : sender === 'assistant' ? 'GHC Digital Twin' : 'Sistema'}</div>
+                    <div class="font-medium mb-1">${icon} ${sender === 'user' ? 'You' : sender === 'assistant' ? 'GHC Digital Twin' : 'System'}</div>
                     <div class="text-sm whitespace-pre-wrap">${content}</div>
                 </div>
             `;
@@ -213,29 +476,21 @@
             messages.push({ sender, content });
         }
 
-        // Manejar Enter en el input
+        // Key press handler
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 sendMessage();
             }
         }
 
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', async function() {
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initVoiceRecognition();
             document.getElementById('messageInput').focus();
             
-            // Buscar backend disponible
-            addMessage('system', '🔍 Buscando backend disponible...');
-            BACKEND_URL = await findWorkingBackend();
-            
-            if (BACKEND_URL) {
-                addMessage('system', `✅ Conectado a: ${BACKEND_URL}`);
-                setTimeout(() => {
-                    addMessage('system', '¡Bienvenido al Digital Twin de Green Hill Canarias! Selecciona tu audiencia y haz una pregunta.');
-                }, 1000);
-            } else {
-                addMessage('system', '❌ No se encontró ningún backend disponible. El chat no funcionará.');
-            }
+            setTimeout(() => {
+                addMessage('system', languages[currentLang].welcomeMsg);
+            }, 500);
         });
     </script>
 </body>
