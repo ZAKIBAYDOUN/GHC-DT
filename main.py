@@ -330,7 +330,154 @@ async def public_answer(request: Request):
 @app.get("/internal/assistants")
 async def internal_assistants():
     return {"DR_BASE_URL": DR_BASE_URL, "ASSISTANT_IDS": ASSISTANT_IDS}
-from fastapi import FastAPI, Request, HTTPException
+import os
+import requests
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+load_dotenv("../.env")  # Try parent directory
+
+DR_BASE_URL = os.getenv("DR_BASE_URL")
+DR_API_KEY = os.getenv("DR_API_KEY")
+
+app = FastAPI()
+
+# CORS configuration - allow all origins for development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Assistant IDs mapping
+ASSISTANT_IDS = {
+    "boardroom": "76f94782-5f1d-4ea0-8e69-294da3e1aefb",
+    "investor": "ff7afd85-51e0-4fdd-8ec5-a14508a100f9",
+    "public": "34747e20-39db-415e-bd80-597006f71a7a",
+}
+
+class AskRequest(BaseModel):
+    audience: str
+    question: str
+
+@app.get("/api/health")
+async def health():
+    return {"ok": True}
+
+@app.get("/api/history")
+async def history():
+    return {"history": []}  # Return empty history for now
+
+@app.post("/api/ask")
+async def ask(request: AskRequest):
+    # Validate audience
+    if request.audience not in ASSISTANT_IDS:
+        return {"error": f"Invalid audience. Must be one of: {list(ASSISTANT_IDS.keys())}"}, 400
+    
+    # Get assistant ID
+    assistant_id = ASSISTANT_IDS[request.audience]
+    
+    # Prepare request to DigitalRoots
+    url = f"{DR_BASE_URL}/runs/wait"
+    headers = {
+        "x-api-key": DR_API_KEY,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "assistant_id": assistant_id,
+        "input": {"question": request.question}
+    }
+    
+    try:
+        # Make request to DigitalRoots
+        response = requests.post(url, headers=headers, json=payload)
+        return response.json(), response.status_code
+    except Exception as e:
+        return {"error": str(e)}, 500
+
+@app.post("/api/ingest")
+async def ingest(file: UploadFile = File(None)):
+    return {"status": "not_implemented"}    import os
+    import requests
+    from fastapi import FastAPI, UploadFile, File
+    from fastapi.middleware.cors import CORSMiddleware
+    from pydantic import BaseModel
+    from dotenv import load_dotenv
+    
+    # Load environment variables
+    load_dotenv()
+    load_dotenv("../.env")  # Try parent directory
+    
+    DR_BASE_URL = os.getenv("DR_BASE_URL")
+    DR_API_KEY = os.getenv("DR_API_KEY")
+    
+    app = FastAPI()
+    
+    # CORS configuration - allow all origins for development
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    # Assistant IDs mapping
+    ASSISTANT_IDS = {
+        "boardroom": "76f94782-5f1d-4ea0-8e69-294da3e1aefb",
+        "investor": "ff7afd85-51e0-4fdd-8ec5-a14508a100f9",
+        "public": "34747e20-39db-415e-bd80-597006f71a7a",
+    }
+    
+    class AskRequest(BaseModel):
+        audience: str
+        question: str
+    
+    @app.get("/api/health")
+    async def health():
+        return {"ok": True}
+    
+    @app.get("/api/history")
+    async def history():
+        return {"history": []}  # Return empty history for now
+    
+    @app.post("/api/ask")
+    async def ask(request: AskRequest):
+        # Validate audience
+        if request.audience not in ASSISTANT_IDS:
+            return {"error": f"Invalid audience. Must be one of: {list(ASSISTANT_IDS.keys())}"}, 400
+        
+        # Get assistant ID
+        assistant_id = ASSISTANT_IDS[request.audience]
+        
+        # Prepare request to DigitalRoots
+        url = f"{DR_BASE_URL}/runs/wait"
+        headers = {
+            "x-api-key": DR_API_KEY,
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "assistant_id": assistant_id,
+            "input": {"question": request.question}
+        }
+        
+        try:
+            # Make request to DigitalRoots
+            response = requests.post(url, headers=headers, json=payload)
+            return response.json(), response.status_code
+        except Exception as e:
+            return {"error": str(e)}, 500
+    
+    @app.post("/api/ingest")
+    async def ingest(file: UploadFile = File(None)):
+        return {"status": "not_implemented"}
+    from fastapi import FastAPI, Request, HTTPException
 import httpx
 import os
 import subprocess

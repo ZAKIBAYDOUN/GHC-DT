@@ -1,0 +1,6 @@
+[tool.black]
+line-length = 88
+exclude = "api/__pycache__|api/uvicorn_app.py"
+
+[tool.isort]
+profile = "black"
