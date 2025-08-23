@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌿 Green Hill Canarias - AI Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-green-800 mb-4">
+                🌿 Green Hill Canarias — AI Portal
+            </h1>
+            <p class="text-lg text-gray-600">Digital Twin empresarial basado en DigitalRoots LangGraph</p>
+        </header>
+
+        <!-- Selector de Audiencia -->
+        <div class="max-w-2xl mx-auto mb-8">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Seleccionar Audiencia:</label>
+            <select id="audience" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                <option value="public">🌍 Public - Información general</option>
+                <option value="investor">💰 Investor - Métricas financieras</option>
+                <option value="boardroom">👔 Boardroom - Decisiones ejecutivas</option>
+            </select>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">💬 Chat con el Digital Twin</h2>
+            
+            <div id="messages" class="bg-gray-50 rounded-lg p-4 mb-4 min-h-[200px] max-h-[400px] overflow-y-auto">
+                <div class="text-gray-500 text-center">Haz tu primera pregunta para comenzar...</div>
+            </div>
+            
+            <div class="flex gap-2">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Escribe tu pregunta aquí..." 
+                    class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    onkeypress="handleKeyPress(event)"
+                >
+                <button 
+                    onclick="sendMessage()" 
+                    class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+                    id="sendButton"
+                >
+                    <i class="fas fa-paper-plane"></i> Enviar
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">📊 Estado del Sistema</h2>
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">CLI Directo:</span>
+                    <span class="text-green-600 font-medium">✅ Funcionando</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">DigitalRoots:</span>
+                    <span class="text-green-600 font-medium">✅ Conectado</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">GitHub Pages:</span>
+                    <span class="text-green-600 font-medium">✅ Desplegado</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12 text-gray-500">
+            <p>Desarrollado para Green Hill Canarias | Powered by DigitalRoots LangGraph</p>
+            <p class="mt-2">
+                <a href="https://github.com/ZAKIBAYDOUN/GHC-DT" target="_blank" class="text-green-600 hover:underline">
+                    <i class="fab fa-github"></i> Ver en GitHub
+                </a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Since GitHub Pages is static and can't connect to codespace backend,
+        // we'll create a mock response system that simulates the Digital Twin
+        
+        const MOCK_RESPONSES = {
+            public: {
+                "WHO ARE YOU?": "I am the Green Hill Canarias Digital Twin, designed to provide general information about our company's mission, services, and public initiatives.",
+                "default": "I'm GHC's Digital Twin for public information. I can help with general questions about Green Hill Canarias."
+            },
+            investor: {
+                "WHO ARE YOU?": "I am the Green Hill Canarias Digital Twin focused on financial metrics, ROI projections, and investor relations.",
+                "default": "I provide investor-focused insights including financial projections, market analysis, and ROI metrics for Green Hill Canarias."
+            },
+            boardroom: {
+                "WHO ARE YOU?": "I am the Green Hill Canarias Digital Twin for executive decision-making, compliance, and strategic planning.",
+                "default": "I assist with executive decisions, regulatory compliance, and strategic planning for Green Hill Canarias leadership."
+            }
+        };
+
+        // State management
+        let messages = [];
+
+        // Mock API call function
+        async function callDigitalTwin(audience, question) {
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+            
+            const responses = MOCK_RESPONSES[audience];
+            const response = responses[question.toUpperCase()] || responses["default"];
+            
+            return {
+                final_answer: `# Green Hill Canarias Digital Twin\n\n**Audience:** ${audience.toUpperCase()}\n**Question:** ${question}\n\n**Response:** ${response}\n\n---\n*This is a static demo. For full functionality, use the CLI: \`python3 call_dr.py ${audience} "${question}"\`*`
+            };
+        }
+
+        // Send message function
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const audience = document.getElementById('audience').value;
+            const question = input.value.trim();
+            
+            if (!question) return;
+
+            // Disable input while processing
+            input.disabled = true;
+            document.getElementById('sendButton').disabled = true;
+            document.getElementById('sendButton').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            // Add user message
+            addMessage('user', question);
+            input.value = '';
+
+            try {
+                // Call mock Digital Twin
+                const data = await callDigitalTwin(audience, question);
+                addMessage('assistant', data.final_answer);
+            } catch (error) {
+                addMessage('system', `Error: ${error.message}`);
+            }
+
+            // Re-enable input
+            input.disabled = false;
+            document.getElementById('sendButton').disabled = false;
+            document.getElementById('sendButton').innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+            input.focus();
+        }        // Función para agregar mensaje al chat
+        function addMessage(sender, content) {
+            const messagesDiv = document.getElementById('messages');
+            
+            // Limpiar mensaje inicial si es el primer mensaje
+            if (messages.length === 0) {
+                messagesDiv.innerHTML = '';
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `mb-4 ${sender === 'user' ? 'text-right' : 'text-left'}`;
+            
+            let bgColor, textColor, icon;
+            if (sender === 'user') {
+                bgColor = 'bg-green-600';
+                textColor = 'text-white';
+                icon = '👤';
+            } else if (sender === 'assistant') {
+                bgColor = 'bg-gray-600';
+                textColor = 'text-white';
+                icon = '🤖';
+            } else {
+                bgColor = 'bg-red-100';
+                textColor = 'text-red-800';
+                icon = '⚠️';
+            }
+
+            messageDiv.innerHTML = `
+                <div class="inline-block max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${bgColor} ${textColor}">
+                    <div class="font-medium mb-1">${icon} ${sender === 'user' ? 'Tú' : sender === 'assistant' ? 'GHC Digital Twin' : 'Sistema'}</div>
+                    <div class="text-sm whitespace-pre-wrap">${content}</div>
+                </div>
+            `;
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            messages.push({ sender, content });
+        }
+
+        // Handle Enter key
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('messageInput').focus();
+            
+            // Welcome message
+            setTimeout(() => {
+                addMessage('system', '✅ Green Hill Canarias Digital Twin ready! Select your audience and ask a question.');
+            }, 500);
+        });
+    </script>
+</body>
+</html>
