@@ -325,8 +325,8 @@ def main():
             st.markdown("### 💬 Chat with GHC Digital Twin")
             
             # Display conversation history
-            for i, message in enumerate(st.session_state.messages):
-                with st.chat_message(message["role"], key=f"message_{i}"):
+            for message in st.session_state.messages:
+                with st.chat_message(message["role"]):
                     st.markdown(message["content"])
             
             # Chat input
