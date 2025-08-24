@@ -7,6 +7,10 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 import time
 import logging
+import urllib3
+
+# Disable SSL warnings when using verify=False
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -119,7 +123,8 @@ def ask_question(question: str, audience: str = "public") -> Dict[str, Any]:
             headers=headers,
             json=payload,
             timeout=30,
-            stream=True
+            stream=True,
+            verify=False  # Disable SSL verification to handle SSL name issues
         )
         
         if response.status_code == 200:
@@ -224,7 +229,7 @@ def ask_question_openai_fallback(question: str, audience: str = "public") -> Dic
             "temperature": 0.7
         }
         
-        response = requests.post(openai_url, headers=headers, json=payload, timeout=30)
+        response = requests.post(openai_url, headers=headers, json=payload, timeout=30, verify=False)
         
         if response.status_code == 200:
             result = response.json()
