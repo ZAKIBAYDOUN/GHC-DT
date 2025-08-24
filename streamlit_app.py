@@ -18,12 +18,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Get configuration from environment
-API_BASE_URL = os.getenv("GHC_API_BASE_URL", "http://localhost:8003")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY", "")
-LANGSMITH_ASSISTANT_ID = os.getenv("LANGSMITH_ASSISTANT_ID", "76f94782-5f1d-4ea0-8e69-294da3e1aefb")
-LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY", "")
+# Get configuration from environment or Streamlit secrets
+def get_config_value(key: str, default: str = "") -> str:
+    """Get configuration from environment or Streamlit secrets"""
+    # Try environment first
+    env_value = os.getenv(key, "")
+    if env_value:
+        return env_value
+    
+    # Try Streamlit secrets
+    try:
+        if hasattr(st, 'secrets') and key in st.secrets:
+            return st.secrets[key]
+    except:
+        pass
+    
+    return default
+
+# Configuration
+API_BASE_URL = get_config_value("GHC_API_BASE_URL", "")
+OPENAI_API_KEY = get_config_value("OPENAI_API_KEY", "")
+LANGSMITH_API_KEY = get_config_value("LANGSMITH_API_KEY", "")
+LANGSMITH_ASSISTANT_ID = get_config_value("LANGSMITH_ASSISTANT_ID", "76f94782-5f1d-4ea0-8e69-294da3e1aefb")
+LANGCHAIN_API_KEY = get_config_value("LANGCHAIN_API_KEY", "")
 
 # Assistant IDs for different audiences
 ASSISTANT_IDS = {
@@ -39,50 +56,71 @@ if "audience" not in st.session_state:
     st.session_state.audience = "public"
 
 def check_system_health():
-    """Check if the backend API is healthy"""
+    """Check LangSmith connection directly"""
     try:
-        # Try different possible API endpoints
-        api_endpoints = [API_BASE_URL, "http://localhost:8003", "http://localhost:8002", "http://localhost:8001"]
+        # Test LangSmith connection
+        langsmith_api = get_config_value("LANGSMITH_API_KEY", "")
+        if not langsmith_api:
+            return False, {"error": "LangSmith API key not configured"}
         
-        for endpoint in api_endpoints:
-            try:
-                response = requests.get(f"{endpoint}/api/health", timeout=2)
-                if response.status_code == 200:
-                    return True, response.json()
-            except:
-                continue
+        # Simple health check - if we have all required configs
+        openai_key = get_config_value("OPENAI_API_KEY", "")
+        assistant_id = get_config_value("LANGSMITH_ASSISTANT_ID", "")
         
-        return False, {"error": "API not reachable"}
+        if langsmith_api and openai_key and assistant_id:
+            return True, {
+                "status": "healthy",
+                "deployment": "LangSmith Direct Connection",
+                "assistant_id": assistant_id[:12] + "..."
+            }
+        else:
+            return False, {"error": "Missing required configuration"}
+            
     except Exception as e:
         return False, {"error": str(e)}
 
 def ask_question(question: str, audience: str = "public") -> Dict[str, Any]:
-    """Send question to the backend API"""
+    """Send question directly to LangSmith"""
     try:
-        # Determine the API endpoint based on audience
-        endpoint = f"{API_BASE_URL}/api/ask"
+        # Get assistant ID based on audience
+        assistant_id = ASSISTANT_IDS.get(audience, ASSISTANT_IDS["public"])
         
-        payload = {
-            "question": question,
-            "audience": audience
-        }
+        # LangSmith API endpoint
+        langsmith_url = "https://api.smith.langchain.com/assistants/invoke"
         
         headers = {
+            "Authorization": f"Bearer {get_config_value('LANGSMITH_API_KEY')}",
             "Content-Type": "application/json"
         }
         
-        response = requests.post(endpoint, json=payload, headers=headers, timeout=30)
+        payload = {
+            "assistant_id": assistant_id,
+            "input": {
+                "messages": [{"role": "user", "content": question}]
+            }
+        }
+        
+        response = requests.post(langsmith_url, headers=headers, json=payload, timeout=30)
         
         if response.status_code == 200:
-            return response.json()
+            result = response.json()
+            # Extract the response message
+            if "output" in result and "messages" in result["output"]:
+                messages = result["output"]["messages"]
+                if messages and len(messages) > 0:
+                    return {
+                        "response": messages[-1].get("content", "No response generated"),
+                        "success": True
+                    }
+            return {"response": "No valid response from LangSmith", "success": False}
         else:
             return {
-                "error": f"API returned status {response.status_code}",
+                "error": f"LangSmith API returned status {response.status_code}",
                 "details": response.text
             }
             
     except requests.exceptions.Timeout:
-        return {"error": "Request timeout - please try again"}
+        return {"error": "Request timeout - LangSmith took too long to respond"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -126,9 +164,10 @@ def main():
         
         # Configuration info
         st.markdown("### ⚙️ Configuration")
-        st.text(f"API: {API_BASE_URL}")
+        st.text("Mode: Direct LangSmith")
         st.text(f"OpenAI: {'✅' if OPENAI_API_KEY else '❌'}")
         st.text(f"LangSmith: {'✅' if LANGSMITH_API_KEY else '❌'}")
+        st.text(f"Assistant: {'✅' if LANGSMITH_ASSISTANT_ID else '❌'}")
     
     # Main chat interface
     col1, col2, col3 = st.columns([1, 6, 1])
@@ -209,7 +248,13 @@ def main():
                 
         else:
             st.error("🔴 System offline - Please check back later")
-            st.info("💡 Make sure the backend API is running on " + API_BASE_URL)
+            st.info("💡 Configure your API keys in Streamlit Cloud Secrets")
+            st.markdown("""
+            **Required secrets:**
+            - `OPENAI_API_KEY`
+            - `LANGSMITH_API_KEY` 
+            - `LANGSMITH_ASSISTANT_ID`
+            """)
     
     # Footer
     st.markdown("---")
