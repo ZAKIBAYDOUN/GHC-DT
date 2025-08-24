@@ -116,63 +116,77 @@ def ask_question(question: str, audience: str = "public") -> Dict[str, Any]:
             "Content-Type": "application/json"
         }
         
-        # Use simple payload format that the API expects
+        # Use LangGraph streaming format (this is what actually works)
         payload = {
-            "question": question,
             "assistant_id": assistant_id,
-            "source_type": audience
+            "thread_id": f"streamlit-{int(time.time())}",
+            "input": {
+                "messages": [
+                    {"role": "user", "content": question}
+                ]
+            }
         }
         
-        # Call LangGraph deployment - try the root endpoint instead of /runs/stream
+        # Call LangGraph deployment with streaming endpoint
         response = requests.post(
-            LANGGRAPH_URL,
+            f"{LANGGRAPH_URL}/runs/stream",
             json=payload,
             headers=headers,
             timeout=30,
-            verify=False  # Disable SSL verification for localhost/dev
+            verify=False,  # Disable SSL verification for localhost/dev
+            stream=True  # Enable streaming for LangSmith
         )
         
         if response.status_code == 200:
-            # Process JSON response instead of streaming
-            try:
-                result = response.json()
-                
-                # Extract the response content
-                if isinstance(result, dict):
-                    # Look for common response fields
-                    answer = (
-                        result.get("answer") or 
-                        result.get("response") or 
-                        result.get("content") or
-                        result.get("final_answer") or
-                        str(result)
-                    )
-                    
-                    return {
-                        "response": answer,
-                        "success": True,
-                        "model": "LangGraph Assistant",
-                        "audience": audience,
-                        "assistant_id": assistant_id,
-                        "raw_data": result
-                    }
-                else:
-                    return {
-                        "response": str(result),
-                        "success": True,
-                        "model": "LangGraph Assistant",
-                        "audience": audience,
-                        "assistant_id": assistant_id
-                    }
-                    
-            except json.JSONDecodeError as e:
-                # If JSON parsing fails, return the text response
+            # Process streaming response
+            full_response = ""
+            final_data = {}
+            
+            for line in response.iter_lines():
+                if line:
+                    try:
+                        # Parse streaming response
+                        line_text = line.decode('utf-8')
+                        if line_text.startswith("data: "):
+                            data_str = line_text[6:]  # Remove "data: " prefix
+                            if data_str.strip() == "[DONE]":
+                                break
+                            
+                            data = json.loads(data_str)
+                            
+                            # Extract response based on the structure
+                            if isinstance(data, dict):
+                                # Handle different response formats
+                                if "final_answer" in data:
+                                    full_response = data["final_answer"]
+                                    final_data = data
+                                elif "content" in data:
+                                    full_response += data.get("content", "")
+                                elif "output" in data:
+                                    if isinstance(data["output"], dict):
+                                        full_response = data["output"].get("final_answer", "")
+                                        final_data = data["output"]
+                                        
+                    except json.JSONDecodeError:
+                        continue
+                    except Exception as e:
+                        logger.warning(f"Error parsing stream line: {e}")
+                        continue
+            
+            # Return the response
+            if full_response:
                 return {
-                    "response": response.text,
+                    "response": full_response,
                     "success": True,
                     "model": "LangGraph Assistant",
                     "audience": audience,
-                    "assistant_id": assistant_id
+                    "assistant_id": assistant_id,
+                    "raw_data": final_data
+                }
+            else:
+                return {
+                    "response": "No response generated from the assistant.",
+                    "success": False
                 }
                 
         else:
