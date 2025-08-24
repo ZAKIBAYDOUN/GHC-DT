@@ -61,8 +61,6 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "audience" not in st.session_state:
     st.session_state.audience = "public"
-if "message_counter" not in st.session_state:
-    st.session_state.message_counter = 0
 
 def check_system_health():
     """Check if LangSmith/LangGraph connection is healthy"""
@@ -333,47 +331,41 @@ def main():
             
             # Chat input
             if prompt := st.chat_input("Enter your business question:", key="unique_chat_input"):
-                # Increment message counter for unique keys
-                st.session_state.message_counter += 1
-                
-                # Add user message to history
+                # Add user message to history first
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 
-                # Display user message
-                with st.chat_message("user", key=f"user_msg_{st.session_state.message_counter}"):
-                    st.markdown(prompt)
-                
                 # Get AI response
-                with st.chat_message("assistant", key=f"assistant_msg_{st.session_state.message_counter}"):
-                    with st.spinner("Analyzing..."):
-                        response = ask_question(prompt, st.session_state.audience)
+                with st.spinner("Analyzing..."):
+                    response = ask_question(prompt, st.session_state.audience)
+                    
+                    if "error" in response:
+                        error_msg = f"⚠️ Error: {response['error']}"
+                        if "details" in response:
+                            error_msg += f"\n\nDetails: {response['details']}"
+                        st.session_state.messages.append({
+                            "role": "assistant", 
+                            "content": error_msg
+                        })
+                    else:
+                        # Extract answer from response
+                        answer = response.get("response", "No response generated")
                         
-                        if "error" in response:
-                            st.error(f"⚠️ {response['error']}")
-                            if "details" in response:
-                                with st.expander("Error details", expanded=False):
-                                    st.code(response['details'])
-                        else:
-                            # Extract answer from response
-                            answer = response.get("response", "No response generated")
-                            
-                            # Display answer
-                            st.markdown(answer)
-                            
-                            # Show metadata if available
-                            if response.get("success") and response.get("model"):
-                                st.caption(f"🤖 Powered by {response.get('model')} | 👥 {response.get('audience', 'public').title()} mode")
-                            
-                            # Add to history
-                            st.session_state.messages.append({
-                                "role": "assistant", 
-                                "content": answer
-                            })
+                        # Add metadata to answer if available
+                        if response.get("success") and response.get("model"):
+                            answer += f"\n\n*🤖 Powered by {response.get('model')} | 👥 {response.get('audience', 'public').title()} mode*"
+                        
+                        # Add to history
+                        st.session_state.messages.append({
+                            "role": "assistant", 
+                            "content": answer
+                        })
+                
+                # Rerun to show new messages
+                st.rerun()
             
             # Clear conversation button
             if st.button("🗑️ Clear Conversation", key="unique_clear_button"):
                 st.session_state.messages = []
-                st.session_state.message_counter = 0
                 st.rerun()
                 
         else:
