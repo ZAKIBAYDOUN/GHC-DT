@@ -123,14 +123,13 @@ def ask_question(question: str, audience: str = "public") -> Dict[str, Any]:
             "assistant_id": assistant_id  # Keep this for compatibility
         }
         
-        # Call LangGraph deployment with streaming endpoint
+        # Call LangGraph deployment directly
         response = requests.post(
-            f"{LANGGRAPH_URL}/runs/stream",
+            LANGGRAPH_URL,  # Use URL as-is from environment
             json=payload,
             headers=headers,
             timeout=30,
-            verify=False,  # Disable SSL verification for localhost/dev
-            stream=True  # Enable streaming for LangSmith
+            verify=False  # Disable SSL verification for localhost/dev
         )
         
         if response.status_code == 200:
