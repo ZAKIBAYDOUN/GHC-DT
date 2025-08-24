@@ -50,8 +50,11 @@ LANGSMITH_ASSISTANT_ID = get_config_value("LANGSMITH_ASSISTANT_ID", "76f94782-5f
 LANGCHAIN_API_KEY = get_config_value("LANGCHAIN_API_KEY", LANGSMITH_API_KEY)  # Fallback to LANGSMITH_API_KEY
 OPENAI_API_KEY = get_config_value("OPENAI_API_KEY", "")  # Optional for fallback
 
-# LangGraph deployment URL (from your GitHub Pages)
-LANGGRAPH_URL = "https://ghc-langsmith-deployment.us.langgraph.cloud"
+# LangGraph deployment URL - try environment first, then fallback
+LANGGRAPH_URL = get_config_value("DR_BASE_URL", "https://ghc-langsmith-deployment.us.langgraph.cloud")
+
+# Also get DR_API_KEY as alternative to LANGSMITH_API_KEY
+DR_API_KEY = get_config_value("DR_API_KEY", "")
 
 # Assistant IDs for different audiences
 ASSISTANT_IDS = {
@@ -70,10 +73,14 @@ def check_system_health():
     """Check if LangSmith/LangGraph connection is healthy"""
     try:
         # Check if we have the required API keys
-        langsmith_key = get_config_value("LANGSMITH_API_KEY", "")
+        langsmith_key = (
+            get_config_value("LANGSMITH_API_KEY", "") or 
+            get_config_value("DR_API_KEY", "") or
+            get_config_value("LANGCHAIN_API_KEY", "")
+        )
         
         if not langsmith_key:
-            return False, {"error": "LangSmith API key not configured"}
+            return False, {"error": "LangSmith/DR API key not configured"}
         
         # We'll consider the system healthy if we have valid keys
         # Actual connection test might rate limit, so we'll trust the configuration
@@ -91,10 +98,14 @@ def check_system_health():
 def ask_question(question: str, audience: str = "public") -> Dict[str, Any]:
     """Send question to LangGraph deployment (matching GitHub Pages implementation)"""
     try:
-        # Get API key
-        langsmith_key = get_config_value('LANGSMITH_API_KEY')
+        # Get API key - try multiple sources
+        langsmith_key = (
+            get_config_value('LANGSMITH_API_KEY') or 
+            get_config_value('DR_API_KEY') or
+            get_config_value('LANGCHAIN_API_KEY')
+        )
         if not langsmith_key:
-            return {"error": "LangSmith API key not configured"}
+            return {"error": "LangSmith/DR API key not configured"}
         
         # Get assistant ID based on audience
         assistant_id = ASSISTANT_IDS.get(audience, ASSISTANT_IDS["public"])
@@ -290,9 +301,20 @@ def main():
         
         # Configuration info
         st.markdown("### ⚙️ Configuration")
-        st.text("Mode: LangSmith/LangGraph")
-        st.text(f"LangSmith: {'✅' if get_config_value('LANGSMITH_API_KEY') else '❌'}")
+        st.text("Mode: LangGraph Direct")
+        langsmith_configured = bool(
+            get_config_value('LANGSMITH_API_KEY') or 
+            get_config_value('DR_API_KEY') or 
+            get_config_value('LANGCHAIN_API_KEY')
+        )
+        st.text(f"LangSmith/DR: {'✅' if langsmith_configured else '❌'}")
         st.text(f"OpenAI (fallback): {'✅' if get_config_value('OPENAI_API_KEY') else '❌'}")
+        
+        # Show which URL is being used
+        if LANGGRAPH_URL != "https://ghc-langsmith-deployment.us.langgraph.cloud":
+            st.text("🔗 Using DR_BASE_URL")
+        else:
+            st.text("🔗 Using default URL")
         
         # Show current assistant
         selected_assistant = ASSISTANT_IDS.get(st.session_state.audience, "Unknown")
