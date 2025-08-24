@@ -326,7 +326,7 @@ def main():
             
             # Display conversation history
             for i, message in enumerate(st.session_state.messages):
-                with st.chat_message(message["role"], key=f"msg_{i}_{message['role']}"):
+                with st.chat_message(message["role"], key=f"message_{i}"):
                     st.markdown(message["content"])
             
             # Chat input
