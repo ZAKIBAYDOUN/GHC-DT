@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GHC Digital Twin</title>
+    <meta name="description" content="Ask questions to the Green Hill Canarias Digital Twin">
+    
+    <!-- Twin API Configuration -->
+    <meta name="twin-api-url" content="https://digitalroots-bf3899aefd705f6789c2466e0c9b974d.us.langgraph.app">
+    
+    <style>
+        :root {
+            --primary-color: #2e7d32;
+            --secondary-color: #4caf50;
+            --error-color: #d32f2f;
+            --warning-color: #ff9800;
+            --background-color: #f5f5f5;
+            --card-background: white;
+            --text-primary: #333;
+            --text-secondary: #666;
+            --border-color: #ddd;
+            --border-radius: 8px;
+            --shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem;
+            background: var(--card-background);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-size: 2.5rem;
+        }
+
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: var(--card-background);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .health-indicator {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .health-indicator.healthy {
+            background-color: #e8f5e8;
+            color: var(--primary-color);
+            border: 1px solid var(--secondary-color);
+        }
+
+        .health-indicator.error {
+            background-color: #ffeaea;
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+        }
+
+        .health-indicator:hover {
+            transform: translateY(-1px);
+        }
+
+        .twin-interface {
+            background: var(--card-background);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .twin-interface h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .query-form {
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .question-input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .question-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: #1b5e20;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .loading.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .twin-response {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .twin-response.success {
+            background-color: #f3f9f3;
+            border-left-color: var(--secondary-color);
+        }
+
+        .twin-response.error {
+            background-color: #fff3f3;
+            border-left-color: var(--error-color);
+        }
+
+        .twin-response .question {
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .twin-response .answer {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .twin-response .status {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-align: right;
+        }
+
+        .twin-response .error {
+            color: var(--error-color);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .examples {
+            background: var(--card-background);
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+        }
+
+        .examples h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .example-questions {
+            display: grid;
+            gap: 0.5rem;
+        }
+
+        .example-question {
+            padding: 0.75rem;
+            background: var(--background-color);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .example-question:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateX(4px);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>?? GHC Digital Twin</h1>
+            <p class="subtitle">Ask questions about Green Hill Canarias</p>
+        </header>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div>
+                <strong>API Status:</strong>
+                <span id="twin-health-status" class="health-indicator">? Checking...</span>
+            </div>
+            <div>
+                <button class="btn btn-secondary" onclick="refreshHealth()">?? Refresh</button>
+            </div>
+        </div>
+
+        <!-- Twin Interface -->
+        <div class="twin-interface">
+            <h2>?? Ask the Digital Twin</h2>
+            
+            <form class="query-form" onsubmit="submitQuestion(event)">
+                <div class="input-group">
+                    <label for="question">Your Question:</label>
+                    <textarea 
+                        id="question" 
+                        class="question-input" 
+                        placeholder="Ask anything about Green Hill Canarias..."
+                        required
+                    ></textarea>
+                </div>
+                
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary" id="ask-btn">
+                        ?? Ask Digital Twin
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="clearQuestion()">
+                        ??? Clear
+                    </button>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <span>Thinking...</span>
+                </div>
+            </form>
+
+            <!-- Response Area -->
+            <div id="twin-answer"></div>
+        </div>
+
+        <!-- Example Questions -->
+        <div class="examples">
+            <h3>?? Example Questions</h3>
+            <div class="example-questions">
+                <div class="example-question" onclick="askExample(this)">
+                    What is Green Hill Canarias?
+                </div>
+                <div class="example-question" onclick="askExample(this)">
+                    What sustainable technologies does GHC use?
+                </div>
+                <div class="example-question" onclick="askExample(this)">
+                    How does GHC contribute to environmental conservation?
+                </div>
+                <div class="example-question" onclick="askExample(this)">
+                    What are the main projects of Green Hill Canarias?
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load the Digital Twin JavaScript -->
+    <script src="assets/ask.js"></script>
+    
+    <script>
+        // UI interaction functions
+        async function submitQuestion(event) {
+            event.preventDefault();
+            
+            const questionInput = document.getElementById('question');
+            const question = questionInput.value.trim();
+            
+            if (!question) return;
+            
+            // Show loading state
+            setLoadingState(true);
+            
+            try {
+                const result = await window.twinAPI.query(question);
+                window.twinAPI.displayAnswer(result, 'twin-answer');
+            } catch (error) {
+                console.error('Error asking question:', error);
+                document.getElementById('twin-answer').innerHTML = `
+                    <div class="twin-response error">
+                        <div class="answer">Sorry, there was an error processing your question.</div>
+                        <div class="error">Error: ${error.message}</div>
+                    </div>
+                `;
+            } finally {
+                setLoadingState(false);
+            }
+        }
+        
+        function setLoadingState(loading) {
+            const askBtn = document.getElementById('ask-btn');
+            const loadingDiv = document.getElementById('loading');
+            
+            if (loading) {
+                askBtn.disabled = true;
+                askBtn.textContent = '? Thinking...';
+                loadingDiv.classList.add('show');
+            } else {
+                askBtn.disabled = false;
+                askBtn.textContent = '?? Ask Digital Twin';
+                loadingDiv.classList.remove('show');
+            }
+        }
+        
+        function clearQuestion() {
+            document.getElementById('question').value = '';
+            document.getElementById('twin-answer').innerHTML = '';
+        }
+        
+        function askExample(element) {
+            const question = element.textContent;
+            document.getElementById('question').value = question;
+            
+            // Scroll to question input
+            document.getElementById('question').focus();
+        }
+        
+        async function refreshHealth() {
+            if (window.twinAPI) {
+                await window.twinAPI.checkHealth();
+            }
+        }
+        
+        // Auto-focus on question input when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('question').focus();
+        });
+        
+        // Handle Enter key in textarea (Shift+Enter for new line, Enter to submit)
+        document.getElementById('question').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submitQuestion(event);
+            }
+        });
+    </script>
+</body>
+</html>

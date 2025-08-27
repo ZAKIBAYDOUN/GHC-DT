@@ -1,0 +1,30 @@
+# GHC Digital Twin Site Configuration
+
+# Enable GitHub Pages
+source: root
+destination: _site
+
+# Include assets
+include:
+  - assets
+  - index.html
+
+# Exclude development files
+exclude:
+  - app/
+  - test_local.py
+  - .github/
+  - README.md
+  - langgraph.json
+
+# Plugins
+plugins:
+  - jekyll-optional-front-matter
+
+# Markdown settings
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+# Security
+safe: true

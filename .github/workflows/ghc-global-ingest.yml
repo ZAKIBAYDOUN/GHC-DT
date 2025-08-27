@@ -1,0 +1,284 @@
+name: GHC Global Document Ingestion
+
+on:
+  workflow_call:
+    inputs:
+      source_globs:
+        description: 'Glob patterns for files to ingest'
+        required: false
+        type: string
+        default: 'docs/**/*.md content/**/*.md **/*.md **/*.txt **/*.pdf'
+      source_type:
+        description: 'Source type for ingested documents'
+        required: false
+        type: string
+        default: 'public'
+      chunk_size:
+        description: 'Maximum chunk size in characters'
+        required: false
+        type: number
+        default: 4000
+      batch_size:
+        description: 'Number of chunks per API request'
+        required: false
+        type: number
+        default: 10
+    secrets:
+      TWIN_API_URL:
+        description: 'Base URL for the Digital Twin API'
+        required: true
+      INGEST_TOKEN:
+        description: 'Authentication token for ingestion (optional)'
+        required: false
+
+jobs:
+  ingest-documents:
+    runs-on: ubuntu-latest
+    name: Ingest Documents to Digital Twin
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install requests pypdf python-frontmatter
+    
+    - name: Create ingestion script
+      run: |
+        cat > ingest_docs.py << 'EOF'
+        import os
+        import glob
+        import requests
+        import json
+        from pathlib import Path
+        import sys
+        import re
+        
+        try:
+            import pypdf
+        except ImportError:
+            pypdf = None
+        
+        try:
+            import frontmatter
+        except ImportError:
+            frontmatter = None
+        
+        def read_file_content(file_path):
+            """Read content from various file types"""
+            file_path = Path(file_path)
+            
+            try:
+                if file_path.suffix.lower() == '.pdf' and pypdf:
+                    # Read PDF content
+                    with open(file_path, 'rb') as file:
+                        reader = pypdf.PdfReader(file)
+                        content = ""
+                        for page in reader.pages:
+                            content += page.extract_text() + "\n"
+                        return content.strip()
+                
+                elif file_path.suffix.lower() in ['.md', '.txt']:
+                    # Read text/markdown content
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        content = file.read()
+                        
+                        # Handle frontmatter in markdown
+                        if file_path.suffix.lower() == '.md' and frontmatter:
+                            try:
+                                post = frontmatter.loads(content)
+                                # Combine frontmatter and content
+                                fm_text = "\n".join([f"{k}: {v}" for k, v in post.metadata.items()])
+                                return f"{fm_text}\n\n{post.content}".strip()
+                            except:
+                                pass
+                        
+                        return content.strip()
+                
+                else:
+                    print(f"Skipping unsupported file type: {file_path}")
+                    return None
+                    
+            except Exception as e:
+                print(f"Error reading {file_path}: {e}")
+                return None
+        
+        def chunk_text(text, max_size=4000, overlap=200):
+            """Split text into chunks with overlap"""
+            if len(text) <= max_size:
+                return [text]
+            
+            chunks = []
+            start = 0
+            
+            while start < len(text):
+                end = start + max_size
+                
+                if end >= len(text):
+                    chunks.append(text[start:])
+                    break
+                
+                # Try to break at sentence boundary
+                break_point = text.rfind('.', start, end)
+                if break_point == -1:
+                    break_point = text.rfind(' ', start, end)
+                if break_point == -1:
+                    break_point = end
+                
+                chunks.append(text[start:break_point])
+                start = break_point - overlap if break_point > overlap else break_point
+            
+            return [chunk.strip() for chunk in chunks if chunk.strip()]
+        
+        def ingest_batch(api_url, texts, token=None):
+            """Send a batch of texts to the ingestion API"""
+            headers = {'Content-Type': 'application/json'}
+            if token:
+                headers['X-INGEST-TOKEN'] = token
+            
+            payload = {'texts': texts}
+            
+            try:
+                response = requests.post(
+                    f"{api_url}/api/twin/ingest_texts",
+                    headers=headers,
+                    json=payload,
+                    timeout=60
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    print(f"? Batch ingested successfully: {result.get('message', 'OK')}")
+                    return True
+                else:
+                    print(f"? Batch failed with status {response.status_code}: {response.text}")
+                    return False
+                    
+            except requests.exceptions.RequestException as e:
+                print(f"? Network error: {e}")
+                return False
+        
+        def main():
+            # Get configuration
+            api_url = os.environ.get('TWIN_API_URL', '').rstrip('/')
+            token = os.environ.get('INGEST_TOKEN')
+            source_globs = os.environ.get('SOURCE_GLOBS', 'docs/**/*.md content/**/*.md **/*.md **/*.txt **/*.pdf')
+            source_type = os.environ.get('SOURCE_TYPE', 'public')
+            chunk_size = int(os.environ.get('CHUNK_SIZE', '4000'))
+            batch_size = int(os.environ.get('BATCH_SIZE', '10'))
+            
+            if not api_url:
+                print("? TWIN_API_URL is required")
+                sys.exit(1)
+            
+            print(f"?? Starting document ingestion")
+            print(f"?? API URL: {api_url}")
+            print(f"?? Source globs: {source_globs}")
+            print(f"?? Source type: {source_type}")
+            print(f"?? Chunk size: {chunk_size}")
+            print(f"?? Batch size: {batch_size}")
+            print(f"?? Using token: {'Yes' if token else 'No'}")
+            
+            # Test API health
+            try:
+                health_response = requests.get(f"{api_url}/health", timeout=30)
+                if health_response.status_code == 200:
+                    print(f"? API health check passed")
+                else:
+                    print(f"?? API health check returned {health_response.status_code}")
+            except Exception as e:
+                print(f"?? API health check failed: {e}")
+            
+            # Collect files
+            all_files = []
+            for pattern in source_globs.split():
+                files = glob.glob(pattern, recursive=True)
+                all_files.extend([f for f in files if os.path.isfile(f)])
+            
+            all_files = list(set(all_files))  # Remove duplicates
+            print(f"?? Found {len(all_files)} files to process")
+            
+            if not all_files:
+                print("?? No files found matching the patterns")
+                return
+            
+            # Process files
+            all_chunks = []
+            processed_files = 0
+            
+            for file_path in all_files:
+                print(f"?? Processing: {file_path}")
+                content = read_file_content(file_path)
+                
+                if content:
+                    # Add metadata to content
+                    file_info = f"Source: {file_path} (Type: {source_type})\n\n"
+                    full_content = file_info + content
+                    
+                    # Chunk the content
+                    chunks = chunk_text(full_content, chunk_size)
+                    all_chunks.extend(chunks)
+                    processed_files += 1
+                    print(f"  ? Generated {len(chunks)} chunks")
+                else:
+                    print(f"  ? Failed to read content")
+            
+            print(f"?? Total: {processed_files} files, {len(all_chunks)} chunks")
+            
+            if not all_chunks:
+                print("?? No content to ingest")
+                return
+            
+            # Send in batches
+            successful_batches = 0
+            total_batches = (len(all_chunks) + batch_size - 1) // batch_size
+            
+            for i in range(0, len(all_chunks), batch_size):
+                batch = all_chunks[i:i+batch_size]
+                batch_num = (i // batch_size) + 1
+                
+                print(f"?? Sending batch {batch_num}/{total_batches} ({len(batch)} chunks)")
+                
+                if ingest_batch(api_url, batch, token):
+                    successful_batches += 1
+                
+            print(f"?? Completed: {successful_batches}/{total_batches} batches successful")
+            
+            if successful_batches < total_batches:
+                print("? Some batches failed")
+                sys.exit(1)
+            else:
+                print("? All batches completed successfully")
+        
+        if __name__ == "__main__":
+            main()
+        EOF
+    
+    - name: Run document ingestion
+      env:
+        TWIN_API_URL: ${{ secrets.TWIN_API_URL }}
+        INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+        SOURCE_GLOBS: ${{ inputs.source_globs }}
+        SOURCE_TYPE: ${{ inputs.source_type }}
+        CHUNK_SIZE: ${{ inputs.chunk_size }}
+        BATCH_SIZE: ${{ inputs.batch_size }}
+      run: |
+        python ingest_docs.py
+    
+    - name: Summary
+      run: |
+        echo "## ?? Ingestion Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **API URL**: ${{ secrets.TWIN_API_URL }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Source Globs**: ${{ inputs.source_globs }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Source Type**: ${{ inputs.source_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Chunk Size**: ${{ inputs.chunk_size }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Batch Size**: ${{ inputs.batch_size }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Authentication**: ${{ secrets.INGEST_TOKEN != '' && 'Enabled' || 'Disabled' }}" >> $GITHUB_STEP_SUMMARY
