@@ -1,3 +1,0 @@
-nohup: ignoring input
-INFO:     Will watch for changes in these directories: ['/workspaces/GHC-DT']
-ERROR:    [Errno 98] Address already in use

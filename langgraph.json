@@ -1,0 +1,7 @@
+{
+  "dependencies": ["app/requirements.txt"],
+  "graphs": {
+    "agent": "app.ghc_twin:app"
+  },
+  "env": ["OPENAI_API_KEY", "VECTOR_STORE_DIR", "ALLOWED_ORIGINS", "INGEST_AUTH_TOKEN"]
+}
